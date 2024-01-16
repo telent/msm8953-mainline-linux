@@ -3,6 +3,7 @@
 // Generated with linux-mdss-dsi-panel-driver-generator from vendor device tree:
 //   Copyright (c) 2013, The Linux Foundation. All rights reserved. (FIXME)
 
+#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
@@ -252,6 +253,43 @@ static const struct drm_panel_funcs boe_520_v0_panel_funcs = {
 	.get_modes = boe_520_v0_get_modes,
 };
 
+static int boe_520_v0_bl_update_status(struct backlight_device *bl)
+{
+	struct mipi_dsi_device *dsi = bl_get_data(bl);
+	u16 brightness = backlight_get_brightness(bl);
+	int ret;
+
+	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
+
+	ret = mipi_dsi_dcs_set_display_brightness(dsi, brightness);
+	if (ret < 0)
+		return ret;
+
+	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+
+	return 0;
+}
+
+static const struct backlight_ops boe_520_v0_bl_ops = {
+	.update_status = boe_520_v0_bl_update_status,
+};
+
+static struct backlight_device *
+boe_520_v0_create_backlight(struct mipi_dsi_device *dsi)
+{
+	struct device *dev = &dsi->dev;
+	// vendor dtsi has qcom,mdss-dsi-bl-max-level = <4095>;
+	const struct backlight_properties props = {
+		.type = BACKLIGHT_RAW,
+		.brightness = 4095,
+		.max_brightness = 4095,
+	};
+
+	return devm_backlight_device_register(dev, dev_name(dev), dev, dsi,
+					      &boe_520_v0_bl_ops, &props);
+}
+
+
 static int boe_520_v0_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
@@ -287,9 +325,14 @@ static int boe_520_v0_probe(struct mipi_dsi_device *dsi)
 
 	ctx->panel.prepare_prev_first = true;
 
-	ret = drm_panel_of_backlight(&ctx->panel);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to get backlight\n");
+	/* ret = drm_panel_of_backlight(&ctx->panel); */
+	/* if (ret) */
+	/* 	return dev_err_probe(dev, ret, "Failed to get backlight\n"); */
+
+	ctx->panel.backlight = boe_520_v0_create_backlight(dsi);
+	if (IS_ERR(ctx->panel.backlight))
+        	return dev_err_probe(dev, PTR_ERR(ctx->panel.backlight),
+				     "Failed to create backlight\n");
 
 	drm_panel_add(&ctx->panel);
 
