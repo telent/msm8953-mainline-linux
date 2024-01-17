@@ -34,6 +34,9 @@
 
 			power-domains = <&gcc MDSS_GDSC>;
 
+			vsp-supply = <&lab_vreg>;
+			vsn-supply = <&ibb_vreg>;
+
 			clocks = <&gcc GCC_MDSS_AHB_CLK>,
 				 <&gcc GCC_MDSS_AXI_CLK>,
 				 <&gcc GCC_MDSS_VSYNC_CLK>,
